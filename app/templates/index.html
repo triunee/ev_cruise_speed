@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EV 최적 순항 속도 추천</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>주행 모드별 맞춤 최적 순항 속도</h1>
+    <p class="sub">조건과 모드를 입력하면 에너지·시간의 합리적 타협점이 되는 순항 속도를 계산합니다.
+      <span class="model">예측 모델: {{ model_name }}</span></p>
+  </header>
+
+  <main>
+    <section class="panel" id="input-panel">
+      <h2>입력</h2>
+
+      <div class="field">
+        <label>주행 모드</label>
+        <div class="mode-buttons">
+          {% for key, m in modes.items() %}
+          <button type="button" class="mode-btn{% if key == 'normal' %} active{% endif %}"
+                  data-mode="{{ key }}">{{ m.label }}<small>α={{ m.alpha }}</small></button>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% for it in basic_inputs %}
+      <div class="field">
+        <label for="f-{{ it.key }}">{{ it.label }} <span class="unit">{{ it.unit }}</span></label>
+        <div class="slider-row">
+          <input type="range" id="f-{{ it.key }}" name="{{ it.key }}"
+                 min="{{ it.min }}" max="{{ it.max }}" step="{{ it.step }}" value="{{ it.default }}" />
+          <output id="o-{{ it.key }}">{{ it.default }}</output>
+        </div>
+      </div>
+      {% endfor %}
+
+      <details id="advanced">
+        <summary>고급 옵션</summary>
+        {% for it in advanced_inputs %}
+        <div class="field">
+          <label for="f-{{ it.key }}">{{ it.label }} <span class="unit">{{ it.unit }}</span></label>
+          <div class="slider-row">
+            <input type="range" id="f-{{ it.key }}" name="{{ it.key }}"
+                   min="{{ it.min }}" max="{{ it.max }}" step="{{ it.step }}" value="{{ it.default }}" />
+            <output id="o-{{ it.key }}">{{ it.default }}</output>
+          </div>
+        </div>
+        {% endfor %}
+      </details>
+
+      <button type="button" id="reset-btn" class="ghost">기본값으로</button>
+    </section>
+
+    <section class="panel" id="result-panel">
+      <h2>추천 결과 <small id="dist-label"></small></h2>
+      <div id="warnings"></div>
+      <div id="cards" class="cards"></div>
+      <h3>속도별 목적함수 <small>· 점 = 모드별 최적 속도</small></h3>
+      <canvas id="chart" width="640" height="300"></canvas>
+      <p class="legend" id="chart-legend"></p>
+    </section>
+  </main>
+
+  <script>
+    window.__SPEED__ = { min: {{ speed_min }}, max: {{ speed_max }} };
+  </script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
