@@ -23,11 +23,11 @@ SPEED_STEP = 1.0
 
 # UI 입력 패널 구성 (기본/고급). key 는 모델 feature 명.
 BASIC_INPUTS = [
-    {"key": "trip_distance_km", "label": "목적지까지 거리", "unit": "km",  "step": 1},
-    {"key": "ambient_temp_C",   "label": "외기 온도",       "unit": "℃",  "step": 1},
-    {"key": "road_grade_pct",   "label": "도로 경사도",     "unit": "%",   "step": 0.5},
-    {"key": "payload_kg",       "label": "적재 하중",       "unit": "kg",  "step": 10},
-    {"key": "hvac_power_kw",    "label": "냉난방 전력",     "unit": "kW",  "step": 0.1},
+    {"key": "trip_distance_km", "label": "목적지까지 거리", "unit": "km",  "step": 1,   "hint": "출발지에서 도착지까지"},
+    {"key": "ambient_temp_C",   "label": "바깥 기온",       "unit": "℃",  "step": 1,   "hint": "낮을수록 전비가 나빠져요"},
+    {"key": "road_grade_pct",   "label": "도로 경사",       "unit": "%",   "step": 0.5, "hint": "오르막 +, 내리막 −"},
+    {"key": "payload_kg",       "label": "싣는 무게",       "unit": "kg",  "step": 10,  "hint": "사람 + 짐 합계"},
+    {"key": "hvac_power_kw",    "label": "냉·난방 세기",    "unit": "kW",  "step": 0.1, "hint": "히터·에어컨 소비 전력"},
 ]
 ADVANCED_INPUTS = [
     {"key": "battery_temp_C",      "label": "배터리 온도",   "unit": "℃",  "step": 1},

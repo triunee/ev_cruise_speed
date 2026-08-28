@@ -3,71 +3,120 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EV 최적 순항 속도 추천</title>
+  <title>순항 속도 코치</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <header>
-    <h1>주행 모드별 맞춤 최적 순항 속도</h1>
-    <p class="sub">조건과 모드를 입력하면, 허용한 에너지 초과 범위 안에서 가장 빠른 순항 속도를 계산합니다.
-      <span class="model">예측 모델: {{ model_name }}</span></p>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">
+        <h1>순항 속도 코치</h1>
+        <span class="tag">{{ model_name }}</span>
+      </div>
+      <p class="sub">조건과 주행 모드를 넣으면, 감내할 에너지 범위 안에서 가장 빠른 순항 속도와
+        그때의 도착 시각·소비량을 알려줍니다.</p>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="테마 전환">
+      <span id="themeIcon">◐</span><span id="themeLabel">테마</span>
+    </button>
   </header>
 
-  <main>
-    <section class="panel" id="input-panel">
+  <div class="grid">
+    <!-- ================= 입력 ================= -->
+    <section class="card" id="inputCard">
       <h2>입력</h2>
 
       <div class="field">
-        <label>주행 모드</label>
-        <div class="mode-buttons">
+        <div class="row1"><label>주행 모드</label></div>
+        <div class="modes" id="modes">
+          {% set subs = {"eco": "에너지 우선", "normal": "균형", "sport": "시간 우선"} %}
           {% for key, m in modes.items() %}
-          <button type="button" class="mode-btn{% if key == 'normal' %} active{% endif %}"
-                  data-mode="{{ key }}">{{ m.label }}<small>+{{ (m.energy_tolerance * 100) | round | int }}%</small></button>
+          <button class="mode-btn {{ key }}" type="button" data-mode="{{ key }}"
+                  aria-pressed="{{ 'true' if key == 'normal' else 'false' }}"
+                  title="에너지 최적 대비 +{{ (m.energy_tolerance * 100) | round | int }}% 까지 허용">
+            <b>{{ m.label }}</b><span>{{ subs[key] }}</span>
+          </button>
           {% endfor %}
         </div>
       </div>
 
-      {% for it in basic_inputs %}
-      <div class="field">
-        <label for="f-{{ it.key }}">{{ it.label }} <span class="unit">{{ it.unit }}</span></label>
-        <div class="slider-row">
-          <input type="range" id="f-{{ it.key }}" name="{{ it.key }}"
-                 min="{{ it.min }}" max="{{ it.max }}" step="{{ it.step }}" value="{{ it.default }}" />
-          <output id="o-{{ it.key }}">{{ it.default }}</output>
-        </div>
-      </div>
-      {% endfor %}
-
-      <details id="advanced">
-        <summary>고급 옵션</summary>
-        {% for it in advanced_inputs %}
-        <div class="field">
+      {% macro slider(it) %}
+      <div class="field" data-key="{{ it.key }}">
+        <div class="row1">
           <label for="f-{{ it.key }}">{{ it.label }} <span class="unit">{{ it.unit }}</span></label>
-          <div class="slider-row">
-            <input type="range" id="f-{{ it.key }}" name="{{ it.key }}"
-                   min="{{ it.min }}" max="{{ it.max }}" step="{{ it.step }}" value="{{ it.default }}" />
-            <output id="o-{{ it.key }}">{{ it.default }}</output>
-          </div>
+          <span class="val" id="v-{{ it.key }}">{{ it.default }}</span>
         </div>
-        {% endfor %}
+        <input type="range" id="f-{{ it.key }}" name="{{ it.key }}"
+               min="{{ it.min }}" max="{{ it.max }}" step="{{ it.step }}" value="{{ it.default }}" />
+        {% if it.hint %}<p class="hint">{{ it.hint }}</p>{% endif %}
+      </div>
+      {% endmacro %}
+
+      <div id="basicFields">
+        {% for it in basic_inputs %}{{ slider(it) }}{% endfor %}
+      </div>
+
+      <details class="adv">
+        <summary>고급 옵션</summary>
+        <div class="body">
+          {% for it in advanced_inputs %}{{ slider(it) }}{% endfor %}
+        </div>
       </details>
 
-      <button type="button" id="reset-btn" class="ghost">기본값으로</button>
+      <button class="ghost" id="resetBtn" type="button">기본값으로</button>
     </section>
 
-    <section class="panel" id="result-panel">
-      <h2>추천 결과 <small id="dist-label"></small></h2>
-      <div id="warnings"></div>
-      <div id="cards" class="cards"></div>
-      <h3>속도별 총에너지 <small>· 점선 = 모드별 에너지 예산, 점 = 추천 속도</small></h3>
-      <canvas id="chart" width="640" height="300"></canvas>
-      <p class="legend" id="chart-legend"></p>
-    </section>
-  </main>
+    <!-- ================= 결과 ================= -->
+    <section class="results">
+      <div class="banner" id="banner" hidden>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 1.5 15 14H1L8 1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M8 6v3.5M8 11.4v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <div id="bannerBody"></div>
+      </div>
 
-  <script>
-    window.__SPEED__ = { min: {{ speed_min }}, max: {{ speed_max }} };
-  </script>
-  <script src="/static/app.js"></script>
+      <div class="card hero">
+        <div class="eyebrow"><span class="dot" id="heroDot"></span><span id="heroMode">노멀 모드</span> · 권장 순항 속도</div>
+        <div class="speed"><span id="heroSpeed">—</span><span class="u">km/h</span></div>
+        <p class="say" id="heroSay"></p>
+        <div class="eta">
+          <span>예상 도착 <b id="heroEta">—</b></span>
+          <span>소요 <b id="heroTime">—</b></span>
+          <span>총 에너지 <b id="heroEnergy">—</b></span>
+        </div>
+        <span class="flag" id="heroFlag" hidden>참고 · 속도 상한에 도달했어요</span>
+
+        <details class="why">
+          <summary>왜 이 속도인가요?</summary>
+          <p id="whyText"></p>
+        </details>
+      </div>
+
+      <div class="card alt">
+        <h3>다른 모드로 가면</h3>
+        <div class="alt-row" id="altRow"></div>
+      </div>
+
+      <div class="card chart-card">
+        <h2>속도별 총 에너지 소비량
+          <span class="lede">입력 조건으로 훑은 예측 곡선. 점선 = 모드가 허용하는 에너지 예산, 점 = 그 예산 안에서 가장 빠른 속도.</span>
+        </h2>
+        <div class="chart-hold"><canvas id="chart"></canvas></div>
+        <p class="chart-note" id="chartNote"></p>
+      </div>
+    </section>
+  </div>
+
+  <footer class="fine">
+    예측 모델: <code>{{ model_name }}</code> · 미입력 조건은 학습 데이터 중앙값으로 채우고, 관측 범위 밖 값은 보정합니다.
+  </footer>
+</div>
+
+<script>
+  window.__SPEED__ = { min: {{ speed_min }}, max: {{ speed_max }} };
+</script>
+<script src="/static/app.js"></script>
 </body>
 </html>
