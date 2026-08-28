@@ -1,7 +1,10 @@
 """추천 엔진 — 학습된 전비 모델 위에서 최적 순항 속도를 계산한다.
 
-노트북(§6)의 `_sweep` / `recommend_speed` / `recommend_all_modes` 로직과 동일.
+노트북(§6)의 `predict_speed_profile` / `select_mode_speed` 로직과 동일.
 학습은 하지 않고, 저장된 파이프라인을 도구로 사용한다.
+
+선택 방식: 속도만 스윕 → 에너지 최적점(min) 대비 energy_tolerance 만큼의
+예산 안에서 가장 빠른 속도를 채택한다. (시간을 목적함수에 섞지 않음)
 """
 from __future__ import annotations
 
@@ -76,13 +79,6 @@ def _sweep(resolved: dict, distance_km: float, speed_min: float, speed_max: floa
     return speeds, np.asarray(e100, dtype=float), energy_kwh, time_h
 
 
-def _minmax(a: np.ndarray) -> np.ndarray:
-    span = a.max() - a.min()
-    if span <= 0:
-        return np.zeros_like(a)
-    return (a - a.min()) / span
-
-
 def recommend(
     raw_inputs: dict,
     distance_km: float,
@@ -100,24 +96,28 @@ def recommend(
         distance_km = clipped
 
     speeds, e100, energy, time_h = _sweep(resolved, distance_km, speed_min, speed_max)
-    e_n, t_n = _minmax(energy), _minmax(time_h)
+    min_energy = float(energy.min())
+    speed_cap = float(speeds[-1])
 
-    cost_by_mode, mode_results = {}, []
+    budget_by_mode, mode_results = {}, []
     for key, meta in MODES.items():
-        alpha = meta["alpha"]
-        cost = alpha * e_n + (1 - alpha) * t_n
-        cost_by_mode[key] = [round(float(c), 4) for c in cost]
-        i = int(np.argmin(cost))
+        tol = meta["energy_tolerance"]
+        budget = min_energy * (1 + tol)
+        budget_by_mode[key] = round(budget, 3)
+
+        allowed = np.where(energy <= budget)[0]          # 예산 내 속도 인덱스
+        i = int(allowed[np.argmax(speeds[allowed])])     # 그 중 가장 빠른 속도
         mode_results.append({
             "mode": key,
             "label": meta["label"],
-            "alpha": alpha,
+            "energy_tolerance": tol,
             "speed_kmh": int(round(speeds[i])),
             "speed_kmh_rounded5": int(round(speeds[i] / 5) * 5),
             "energy_kwh_per_100km": round(float(e100[i]), 2),
             "total_energy_kwh": round(float(energy[i]), 2),
             "time_h": round(float(time_h[i]), 3),
             "time_min": int(round(time_h[i] * 60)),
+            "hit_speed_cap": bool(speeds[i] == speed_cap),
         })
 
     base = next(m for m in mode_results if m["mode"] == BASELINE_MODE)
@@ -136,8 +136,9 @@ def recommend(
         "curve": {
             "speed_kmh": [float(s) for s in speeds],
             "energy_kwh_per_100km": [round(float(v), 3) for v in e100],
+            "total_energy_kwh": [round(float(v), 3) for v in energy],
             "time_h": [round(float(v), 4) for v in time_h],
-            "cost": cost_by_mode,
+            "energy_budget_by_mode": budget_by_mode,
         },
         "warnings": warnings,
     }

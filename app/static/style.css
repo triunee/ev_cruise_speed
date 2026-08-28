@@ -86,6 +86,7 @@ button.ghost {
 .card dl dt { color: var(--muted); }
 .card .delta.pos { color: var(--sport); }
 .card .delta.neg { color: var(--eco); }
+.card .cap-warn { margin: 8px 0 0; font-size: 0.72rem; color: #f4d59a; }
 
 #warnings:empty { display: none; }
 #warnings {

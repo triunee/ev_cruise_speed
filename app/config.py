@@ -1,16 +1,18 @@
-"""서비스 상수. 모드 → α 매핑과 속도 스윕 범위 등."""
+"""서비스 상수. 모드 → energy_tolerance 매핑과 속도 스윕 범위 등."""
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 MODEL_PATH = ROOT / "model" / "ev_energy_model.joblib"
 
-# 주행 모드 → α (에너지 가중치). 기획 보고서 §6-2 참조.
-#   α ↑  → 에너지 절약 우선 → 저속 추천
-#   α ↓  → 도달 시간 우선   → 고속 추천
+# 주행 모드 → energy_tolerance (에너지 허용 초과율). 기획 보고서 §6-2 참조.
+#   tol ↑ → 에너지를 더 써도 됨 → 고속 추천
+#   tol ↓ → 에너지 최적점에 근접 → 저속 추천
+# 전비가 속도에 단조 증가 → 총에너지도 단조 증가 → 에너지 최소점은 최저속도.
+# 전체 속도구간 에너지 폭이 ~25%뿐이라 tol은 민감함 (유효 범위 대략 0.03~0.22).
 MODES = {
-    "eco":    {"label": "에코",   "alpha": 0.65},
-    "normal": {"label": "노멀",   "alpha": 0.40},
-    "sport":  {"label": "스포츠", "alpha": 0.15},
+    "eco":    {"label": "에코",   "energy_tolerance": 0.05},
+    "normal": {"label": "노멀",   "energy_tolerance": 0.12},
+    "sport":  {"label": "스포츠", "energy_tolerance": 0.20},
 }
 BASELINE_MODE = "normal"  # 트레이드오프 비교 기준
 

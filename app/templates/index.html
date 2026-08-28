@@ -9,7 +9,7 @@
 <body>
   <header>
     <h1>주행 모드별 맞춤 최적 순항 속도</h1>
-    <p class="sub">조건과 모드를 입력하면 에너지·시간의 합리적 타협점이 되는 순항 속도를 계산합니다.
+    <p class="sub">조건과 모드를 입력하면, 허용한 에너지 초과 범위 안에서 가장 빠른 순항 속도를 계산합니다.
       <span class="model">예측 모델: {{ model_name }}</span></p>
   </header>
 
@@ -22,7 +22,7 @@
         <div class="mode-buttons">
           {% for key, m in modes.items() %}
           <button type="button" class="mode-btn{% if key == 'normal' %} active{% endif %}"
-                  data-mode="{{ key }}">{{ m.label }}<small>α={{ m.alpha }}</small></button>
+                  data-mode="{{ key }}">{{ m.label }}<small>+{{ (m.energy_tolerance * 100) | round | int }}%</small></button>
           {% endfor %}
         </div>
       </div>
@@ -59,7 +59,7 @@
       <h2>추천 결과 <small id="dist-label"></small></h2>
       <div id="warnings"></div>
       <div id="cards" class="cards"></div>
-      <h3>속도별 목적함수 <small>· 점 = 모드별 최적 속도</small></h3>
+      <h3>속도별 총에너지 <small>· 점선 = 모드별 에너지 예산, 점 = 추천 속도</small></h3>
       <canvas id="chart" width="640" height="300"></canvas>
       <p class="legend" id="chart-legend"></p>
     </section>

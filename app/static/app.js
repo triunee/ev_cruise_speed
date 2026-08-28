@@ -40,7 +40,7 @@ function renderCards(data) {
     const active = m.mode === selectedMode ? " style='outline:2px solid " + MODE_COLORS[m.mode] + "'" : "";
     return `
     <div class="card ${m.mode}"${active}>
-      <h4>${m.label} <small style="color:var(--muted)">α=${m.alpha}</small></h4>
+      <h4>${m.label} <small style="color:var(--muted)">에너지 +${Math.round(m.energy_tolerance * 100)}% 허용</small></h4>
       <div class="speed">${m.speed_kmh_rounded5}<span> km/h</span></div>
       <dl>
         <div><dt>예상 전비</dt><dd>${m.energy_kwh_per_100km} kWh/100km</dd></div>
@@ -49,22 +49,25 @@ function renderCards(data) {
         <div><dt>${data.baseline_mode === "normal" ? "노멀" : data.baseline_mode} 대비</dt>
           <dd>${fmtDelta(m.delta_time_min_vs_baseline, "분")} / ${fmtDelta(m.delta_energy_kwh_vs_baseline, "kWh")}</dd></div>
       </dl>
+      ${m.hit_speed_cap ? '<p class="cap-warn">⚠ 속도 상한 도달 — 스윕 범위를 넓히면 더 빠른 값 가능</p>' : ""}
     </div>`;
   }).join("");
 }
 
 // ---- 간단한 라인 차트 (의존성 없음) --------------------------------------
+// 총에너지(kWh) vs 속도 곡선 + 모드별 에너지 예산선 + 추천 속도 점
 function drawChart(data) {
   const cv = document.getElementById("chart");
   const ctx = cv.getContext("2d");
-  const W = cv.width, H = cv.height, pad = { l: 44, r: 12, t: 12, b: 28 };
+  const W = cv.width, H = cv.height, pad = { l: 52, r: 12, t: 12, b: 28 };
   ctx.clearRect(0, 0, W, H);
 
   const xs = data.curve.speed_kmh;
-  const series = ["eco", "normal", "sport"].map((k) => ({ k, y: data.curve.cost[k] }));
+  const ys = data.curve.total_energy_kwh;
+  const budgets = data.curve.energy_budget_by_mode;
   const xMin = xs[0], xMax = xs[xs.length - 1];
-  let yMin = Infinity, yMax = -Infinity;
-  series.forEach((s) => s.y.forEach((v) => { yMin = Math.min(yMin, v); yMax = Math.max(yMax, v); }));
+  let yMin = Math.min(...ys), yMax = Math.max(...ys);
+  Object.values(budgets).forEach((b) => { yMin = Math.min(yMin, b); yMax = Math.max(yMax, b); });
   const px = (x) => pad.l + (x - xMin) / (xMax - xMin) * (W - pad.l - pad.r);
   const py = (y) => H - pad.b - (y - yMin) / (yMax - yMin || 1) * (H - pad.t - pad.b);
 
@@ -75,22 +78,30 @@ function drawChart(data) {
     ctx.fillText(x, px(x) - 6, H - pad.b + 14);
     ctx.strokeStyle = "#1b2735"; ctx.beginPath(); ctx.moveTo(px(x), pad.t); ctx.lineTo(px(x), H - pad.b); ctx.stroke();
   }
-  ctx.fillText("cost(v)", 6, pad.t + 8);
+  ctx.fillStyle = "#93a4b7";
+  ctx.fillText("총에너지(kWh)", 4, pad.t + 8);
   ctx.fillText("속도(km/h)", W - pad.r - 60, H - 6);
 
-  // 곡선 + 최적점
-  series.forEach((s) => {
-    ctx.strokeStyle = MODE_COLORS[s.k]; ctx.lineWidth = s.k === selectedMode ? 2.6 : 1.3;
-    ctx.beginPath();
-    s.y.forEach((v, i) => (i ? ctx.lineTo(px(xs[i]), py(v)) : ctx.moveTo(px(xs[i]), py(v))));
-    ctx.stroke();
-    const mi = s.y.indexOf(Math.min(...s.y));
-    ctx.fillStyle = MODE_COLORS[s.k];
-    ctx.beginPath(); ctx.arc(px(xs[mi]), py(s.y[mi]), 4, 0, Math.PI * 2); ctx.fill();
+  // 총에너지 곡선
+  ctx.strokeStyle = "#93a4b7"; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ys.forEach((v, i) => (i ? ctx.lineTo(px(xs[i]), py(v)) : ctx.moveTo(px(xs[i]), py(v))));
+  ctx.stroke();
+
+  // 모드별 예산선 + 추천 속도 점
+  data.modes.forEach((m) => {
+    const b = budgets[m.mode];
+    ctx.strokeStyle = MODE_COLORS[m.mode];
+    ctx.lineWidth = m.mode === selectedMode ? 2.4 : 1;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(pad.l, py(b)); ctx.lineTo(W - pad.r, py(b)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = MODE_COLORS[m.mode];
+    ctx.beginPath(); ctx.arc(px(m.speed_kmh), py(b), 4, 0, Math.PI * 2); ctx.fill();
   });
 
   document.getElementById("chart-legend").innerHTML = data.modes.map((m) =>
-    `<span><b class="${m.mode}">●</b> ${m.label} → ${m.speed_kmh_rounded5} km/h</span>`).join("");
+    `<span><b class="${m.mode}">●</b> ${m.label} → ${m.speed_kmh_rounded5} km/h${m.hit_speed_cap ? " ⚠상한" : ""}</span>`).join("");
 }
 
 // ---- 통신 ----------------------------------------------------------------

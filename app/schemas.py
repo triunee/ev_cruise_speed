@@ -33,13 +33,14 @@ class RecommendRequest(BaseModel):
 class ModeResult(BaseModel):
     mode: str
     label: str
-    alpha: float
+    energy_tolerance: float
     speed_kmh: int
     speed_kmh_rounded5: int
     energy_kwh_per_100km: float
     total_energy_kwh: float
     time_h: float
     time_min: int
+    hit_speed_cap: bool
     delta_time_min_vs_baseline: int
     delta_energy_kwh_vs_baseline: float
 
@@ -47,8 +48,9 @@ class ModeResult(BaseModel):
 class Curve(BaseModel):
     speed_kmh: list[float]
     energy_kwh_per_100km: list[float]
+    total_energy_kwh: list[float]
     time_h: list[float]
-    cost: dict[str, list[float]]
+    energy_budget_by_mode: dict[str, float]
 
 
 class RecommendResponse(BaseModel):
